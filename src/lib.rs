@@ -2,26 +2,28 @@
 #![doc(html_playground_url = "https://play.rust-lang.org/")]
 
 use std::{
-    collections::BTreeMap,
     fmt::{self, Display},
     process::exit,
     str,
 };
 
+use multimap::MultiMap;
+
 #[cfg(test)]
 mod tests {
+    use multimap::MultiMap;
+
     use crate::Argument;
-    use std::collections::BTreeMap;
-    
+
     // test of "new" function
     #[test]
     fn new() {
         let mut args: (
-            BTreeMap<String, (String, isize)>,
-            BTreeMap<char, (String, isize, String)>,
-        ) = (BTreeMap::new(), BTreeMap::new());
+            MultiMap<String, (String, isize)>,
+            MultiMap<char, (String, isize, String)>,
+        ) = (MultiMap::new(), MultiMap::new());
 
-        let exit_statuses: BTreeMap<u16, String> = BTreeMap::new();
+        let exit_statuses: MultiMap<u16, String> = MultiMap::new();
 
         args.1.insert(
             'h',
@@ -49,12 +51,12 @@ mod tests {
     // test of "add_exit_status" function
     #[test]
     fn exit_status() {
-        let mut expected_test_obj: BTreeMap<String, (bool, Vec<String>)> = BTreeMap::new();
-        
+        let mut expected_test_obj: MultiMap<String, (bool, Vec<String>)> = MultiMap::new();
+
         expected_test_obj.insert("h".to_string(), (false, vec![]));
 
         let mut argument_test_obj = Argument::new("Hello", "World", "From", "TAAP");
-        
+
         argument_test_obj.add_exit_status(0, "Everything went well!");
         let result_test_obj = argument_test_obj.parse_args(None);
 
@@ -64,24 +66,24 @@ mod tests {
     // test of "add_option" function
     #[test]
     fn options() {
-        let mut expected_test_obj: BTreeMap<String, (bool, Vec<String>)> = BTreeMap::new();
-        
+        let mut expected_test_obj: MultiMap<String, (bool, Vec<String>)> = MultiMap::new();
+
         expected_test_obj.insert("f".to_string(), (false, vec![]));
         expected_test_obj.insert("h".to_string(), (false, vec![]));
 
         let mut argument_test_obj = Argument::new("Hello", "World", "From", "TAAP");
-        
+
         argument_test_obj.add_option('f', "foo", "0", None);
         let result_test_obj = argument_test_obj.parse_args(None);
 
         assert_eq!(expected_test_obj, result_test_obj);
     }
-    
+
     // test of "add_arg" function
     #[test]
     fn args() {
-        let mut expected_test_obj: BTreeMap<String, (bool, Vec<String>)> = BTreeMap::new();
-        
+        let mut expected_test_obj: MultiMap<String, (bool, Vec<String>)> = MultiMap::new();
+
         expected_test_obj.insert("GOOD BYE".to_string(), (true, vec![]));
         expected_test_obj.insert("HELLO WORLD".to_string(), (true, vec![]));
         expected_test_obj.insert("h".to_string(), (false, vec![]));
@@ -118,12 +120,12 @@ mod tests {
 pub struct Argument {
     name: String,
     description: String,
-    exit_statuses: BTreeMap<u16, String>,
+    exit_statuses: MultiMap<u16, String>,
     epilog: String,
     credits: String,
     args: (
-        BTreeMap<String, (String, isize)>,
-        BTreeMap<char, (String, isize, String)>,
+        MultiMap<String, (String, isize)>,
+        MultiMap<char, (String, isize, String)>,
     ),
 }
 
@@ -151,7 +153,7 @@ impl Argument {
     /// fn main () {
     /// let mut arguments = taap::Argument::new("Name", "Description", "Epilog, text at the bottom", "Credits");
     /// // do something with arguments
-    /// 
+    ///
     /// }
     /// ```
     ///
@@ -164,10 +166,10 @@ impl Argument {
     ///
     pub fn new(name: &str, description: &str, epilog: &str, credits: &str) -> Self {
         let mut args: (
-            BTreeMap<String, (String, isize)>,
-            BTreeMap<char, (String, isize, String)>,
-        ) = (BTreeMap::new(), BTreeMap::new());
-        let exit_statuses: BTreeMap<u16, String> = BTreeMap::new();
+            MultiMap<String, (String, isize)>,
+            MultiMap<char, (String, isize, String)>,
+        ) = (MultiMap::new(), MultiMap::new());
+        let exit_statuses: MultiMap<u16, String> = MultiMap::new();
         args.1.insert(
             'h',
             (
@@ -287,7 +289,7 @@ impl Argument {
     /// arguments.add_option('-', "boo", "2", Some("I only have a long name"));
     /// arguments.add_option('a', "-", "0", Some("I only have a short name"));
     /// arguments.add_option('n', "no-help", "0", None);
-    /// 
+    ///
     ///
     /// // More code...
     /// // ...
@@ -484,7 +486,7 @@ impl Argument {
     pub fn parse_args(
         &mut self,
         custom_arglist: Option<Vec<String>>,
-    ) -> BTreeMap<String, (bool, Vec<String>)> {
+    ) -> MultiMap<String, (bool, Vec<String>)> {
         let mut collected_raw_args: Vec<String> = std::env::args().collect();
         match custom_arglist {
             Some(val) => collected_raw_args = val,
@@ -494,7 +496,7 @@ impl Argument {
         };
         let positional_arguments = &self.args.0;
         let options = &self.args.1;
-        let mut return_map: BTreeMap<String, (bool, Vec<String>)> = BTreeMap::new();
+        let mut return_map: MultiMap<String, (bool, Vec<String>)> = MultiMap::new();
         for (key, val) in options.iter() {
             let name: String;
             if key.to_owned() == '-' {
@@ -557,47 +559,50 @@ impl Argument {
                 }
             } else if argument.len() > 2 && argument.get(..2).unwrap() == "--" {
                 let part = argument.get(2..).unwrap();
-                for (key, values) in &*options {
-                    if part == values.0 {
-                        let name: String;
-                        if key.to_owned() != '-' {
-                            name = key.to_string();
-                        } else {
-                            name = part.to_string();
-                        };
-                        let options_needed = values.1;
-                        // infinite args handling
-                        if options_needed < 0 {
-                            let mut temp_infinite_arglist: Vec<String> = vec![];
-                            for argument2 in collected_raw_args[pos + 1..].iter() {
-                                if argument2.starts_with("-") {
-                                    break;
-                                };
-                                if argument2.starts_with(r"\") {
-                                    temp_infinite_arglist.push(argument2[1..].to_string());
-                                } else {
-                                    temp_infinite_arglist.push(argument2.to_owned());
-                                };
-                            }
-                            *return_map.get_mut(&part.to_string()).unwrap() =
-                                (true, temp_infinite_arglist);
-                        } else {
-                            // Normal args are handled HERE
-                            if collected_raw_args.len() < pos + 1 + options_needed as usize {
-                                eprintln!(
-                                    "Error! --{} requires {} arguments",
-                                    &part, options_needed
-                                );
-                                exit(1);
+                for (key, all_values) in &*options {
+                    for values in all_values {
+                        if part == values.0 {
+                            let name: String;
+                            if key.to_owned() != '-' {
+                                name = key.to_string();
+                            } else {
+                                name = part.to_string();
                             };
-                            *return_map.get_mut(&name).unwrap() = (
-                                true,
-                                collected_raw_args[pos + 1..(pos + 1 + options_needed as usize)]
-                                    .iter()
-                                    .cloned()
-                                    .collect(),
-                            );
-                        };
+                            let options_needed = values.1;
+                            // infinite args handling
+                            if options_needed < 0 {
+                                let mut temp_infinite_arglist: Vec<String> = vec![];
+                                for argument2 in collected_raw_args[pos + 1..].iter() {
+                                    if argument2.starts_with("-") {
+                                        break;
+                                    };
+                                    if argument2.starts_with(r"\") {
+                                        temp_infinite_arglist.push(argument2[1..].to_string());
+                                    } else {
+                                        temp_infinite_arglist.push(argument2.to_owned());
+                                    };
+                                }
+                                *return_map.get_mut(&part.to_string()).unwrap() =
+                                    (true, temp_infinite_arglist);
+                            } else {
+                                // Normal args are handled HERE
+                                if collected_raw_args.len() < pos + 1 + options_needed as usize {
+                                    eprintln!(
+                                        "Error! --{} requires {} arguments",
+                                        &part, options_needed
+                                    );
+                                    exit(1);
+                                };
+                                *return_map.get_mut(&name).unwrap() = (
+                                    true,
+                                    collected_raw_args
+                                        [pos + 1..(pos + 1 + options_needed as usize)]
+                                        .iter()
+                                        .cloned()
+                                        .collect(),
+                                );
+                            };
+                        }
                     }
                 }
             }

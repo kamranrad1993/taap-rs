@@ -12,3 +12,4 @@ categories = ["command-line-interface"]
 exclude = ["/examples", "/target", "TODO.md"]
 
 [dependencies]
+multimap = "0.10.0"
